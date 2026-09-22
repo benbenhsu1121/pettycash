@@ -103,42 +103,55 @@
       projectId: "payroll-attendance-da6b1",
       storageBucket: "payroll-attendance-da6b1.firebasestorage.app",
       messagingSenderId: "697411530182",
-      appId: "1:697411530182:web:82a967282a51148c0016c7",
-      measurementId: "G-126PX9RFPE"
+      appId: "1:697411530182:web:82a967282a51148c0016c7"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const storage = firebase.storage();
 
-    // 🌟 你的 LIFF ID
-    const MY_LIFF_ID = "2011667192-nB1wIENX";
+    // 正確的零用金 LIFF ID
+    const MY_LIFF_ID = "2011667192-nB1wlENX";
 
     let currentUserId = "test_user_01";
-    let currentUserName = "測試師傅";
+    let currentUserName = "師傅";
     let compressedImageBlob = null;
 
-    // 畫面載入與身分偵測
+    // 🌟 啟動：初始化 LINE LIFF 並自動從打卡系統對應員工姓名
     window.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("expenseDate").value = new Date().toISOString().split("T")[0];
 
-      const liffTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("LIFF 逾時")), 3000)
-      );
-
       try {
-        await Promise.race([liff.init({ liffId: MY_LIFF_ID }), liffTimeout]);
+        await liff.init({ liffId: MY_LIFF_ID });
         if (liff.isLoggedIn()) {
           const profile = await liff.getProfile();
           currentUserId = profile.userId;
-          currentUserName = profile.displayName;
+          currentUserName = profile.displayName; // 預設使用 LINE 暱稱
+
+          // 🌟 從 check_ins 集合查詢該師傅在打卡系統中的真實名稱
+          try {
+            const checkInSnap = await db.collection("check_ins")
+              .where("lineUserId", "==", currentUserId)
+              .limit(1)
+              .get();
+
+            if (!checkInSnap.empty) {
+              const checkInData = checkInSnap.docs[0].data();
+              if (checkInData.displayName) {
+                currentUserName = checkInData.displayName; // 對應到打卡系統姓名
+              }
+            }
+          } catch (e) {
+            console.warn("無法取得打卡姓名，使用 LINE 暱稱:", e);
+          }
+
           document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
         } else {
           document.getElementById("workerProfile").innerText = `👷 訪客模式`;
         }
       } catch (err) {
-        console.warn("LIFF 啟用備案模式:", err);
-        document.getElementById("workerProfile").innerText = `👷 測試師傅 (本機)`;
+        console.error("LIFF 啟用失敗:", err);
+        document.getElementById("workerProfile").innerText = `👷 師傅 (離線)`;
       }
 
       loadMyClaims();
@@ -205,17 +218,17 @@
         const monthFolder = expenseDate.substring(0, 7).replace("-", "");
         const storagePath = `receipts/${monthFolder}/${claimId}.jpg`;
 
-        // 1. 上傳發票照片至 Storage
+        // 1. 上傳照片
         const storageRef = storage.ref(storagePath);
         const snapshot = await storageRef.put(compressedImageBlob, { contentType: "image/jpeg" });
         const imageUrl = await snapshot.ref.getDownloadURL();
 
-        submitBtn.innerText = "儲存紀錄中...";
+        submitBtn.innerText = "儲存單據中...";
 
-        // 2. 寫入單據至 Firestore
+        // 2. 寫入資料庫
         await db.collection("petty_cash_claims").doc(claimId).set({
           id: claimId,
-          workerName: currentUserName,
+          workerName: currentUserName, // 🌟 正確寫入師傅打卡名稱
           lineUserId: currentUserId,
           expenseDate: expenseDate,
           amount: amount,
@@ -225,8 +238,7 @@
           receiptStoragePath: storagePath,
           status: "pending",
           rejectReason: "",
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         alert("✅ 報銷單已送出，等待主管審核！");
@@ -235,23 +247,20 @@
         removePhoto();
         loadMyClaims();
       } catch (err) {
-        console.error("提交錯誤:", err);
-        alert("送出失敗: " + err.message);
+        alert("⚠️ 錯誤發生: " + err.message);
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = "送出報銷申請";
       }
     }
 
-    // 載入近期紀錄
+    // 載入紀錄
     async function loadMyClaims() {
       const listEl = document.getElementById("claimsList");
-      listEl.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">更新中...</div>`;
       try {
         const snapshot = await db.collection("petty_cash_claims")
           .where("lineUserId", "==", currentUserId)
-          .orderBy("createdAt", "desc")
-          .limit(15)
+          .limit(20)
           .get();
 
         if (snapshot.empty) {
@@ -259,9 +268,12 @@
           return;
         }
 
+        let claims = [];
+        snapshot.forEach(doc => claims.push(doc.data()));
+        claims.sort((a, b) => (b.expenseDate > a.expenseDate ? 1 : -1));
+
         let html = "";
-        snapshot.forEach(doc => {
-          const c = doc.data();
+        claims.forEach(c => {
           let badge = c.status === "pending" ? `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded">待審核</span>`
                     : c.status === "approved" ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">已沖銷</span>`
                     : `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded">已退回</span>`;
@@ -289,17 +301,15 @@
         });
         listEl.innerHTML = html;
       } catch (err) {
-        listEl.innerHTML = `<div class="text-center py-4 text-xs text-rose-400">讀取紀錄失敗: ${err.message}</div>`;
+        listEl.innerHTML = `<div class="text-center py-4 text-xs text-rose-500">載入失敗: ${err.message}</div>`;
       }
     }
 
-    // 撤回單據
     async function cancelClaim(claimId) {
       if (!confirm("確定要撤回這筆報銷申請嗎？")) return;
       try {
         await db.collection("petty_cash_claims").doc(claimId).update({
-          status: "cancelled",
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          status: "cancelled"
         });
         alert("已撤回該單據！");
         loadMyClaims();
