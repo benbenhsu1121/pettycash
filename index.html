@@ -1,364 +1,287 @@
-{\rtf1\ansi\ansicpg950\cocoartf2868
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>零用金報銷系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 pb-12 antialiased">
+  <header class="bg-amber-600 text-white p-4 shadow sticky top-0 z-30">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🧾</span>
+        <h1 class="font-bold text-lg">零用金報銷申請</h1>
+      </div>
+      <div id="workerProfile" class="text-xs bg-amber-700/60 px-2.5 py-1 rounded-full text-amber-100">
+        載入身分中...
+      </div>
+    </div>
+  </header>
 
-\f0\fs24 \cf0 <!DOCTYPE html>\
-<html lang="zh-TW">\
-<head>\
-  <meta charset="UTF-8" />\
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />\
-  <title>匯汯營造</title>\
-  <meta property="og:title" content="零用金報銷系統">
-  <meta property="og:description" content="請於此做開銷報銷以供審核。">
-  <!-- Tailwind CSS CDN -->\
-  <script src="https://cdn.tailwindcss.com"></script>\
-  <!-- LINE LIFF SDK -->\
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>\
-\
-  <!-- Firebase SDKs (Compat \uc0\u27169 \u24335 ) -->\
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>\
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>\
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>\
-\
-  <style>\
-    /* \uc0\u40670 \u25802 \u22238 \u39243  */\
-    .tap-active:active \{ transform: scale(0.98); opacity: 0.9; \}\
-  </style>\
-</head>\
-<body class="bg-slate-100 text-slate-800 pb-12 antialiased">\
-\
-  <!-- \uc0\u38914 \u37096 \u23566 \u33322  -->\
-  <header class="bg-amber-600 text-white p-4 shadow sticky top-0 z-30">\
-    <div class="max-w-md mx-auto flex items-center justify-between">\
-      <div class="flex items-center gap-2">\
-        <span class="text-xl">\uc0\u55358 \u56830 </span>\
-        <h1 class="font-bold text-lg">\uc0\u38646 \u29992 \u37329 \u22577 \u37559 \u30003 \u35531 </h1>\
-      </div>\
-      <div id="workerProfile" class="text-xs bg-amber-700/60 px-2.5 py-1 rounded-full text-amber-100">\
-        \uc0\u36617 \u20837 \u36523 \u20998 \u20013 ...\
-      </div>\
-    </div>\
-  </header>\
-\
-  <main class="max-w-md mx-auto p-4 space-y-5">\
-\
-    <!-- \uc0\u22577 \u37559 \u34920 \u21934 \u21345 \u29255  -->\
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">\
-      <h2 class="text-base font-bold text-slate-700 flex items-center gap-1.5 border-b pb-2">\
-        <span>\uc0\u9999 \u65039 </span> \u22635 \u23531 \u22577 \u37559 \u26126 \u32048 \
-      </h2>\
-\
-      <!-- \uc0\u33457 \u36027 \u26085 \u26399  -->\
-      <div>\
-        <label class="block text-xs font-semibold text-slate-500 mb-1">\uc0\u33457 \u36027 \u26085 \u26399 </label>\
-        <input type="date" id="expenseDate"\
-               class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500" />\
-      </div>\
-\
-      <!-- \uc0\u22577 \u37559 \u37329 \u38989  -->\
-      <div>\
-        <label class="block text-xs font-semibold text-slate-500 mb-1">\uc0\u37329 \u38989  (\u20803 ) <span class="text-rose-500">*</span></label>\
-        <div class="relative">\
-          <span class="absolute left-3 top-2.5 text-slate-400 font-bold">$</span>\
-          <input type="number" id="amount" placeholder="\uc0\u20363 \u22914 : 850" min="1" inputmode="numeric"\
-                 class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-base font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500" />\
-        </div>\
-      </div>\
-\
-      <!-- \uc0\u25903 \u20986 \u39006 \u21029  -->\
-      <div>\
-        <label class="block text-xs font-semibold text-slate-500 mb-1">\uc0\u25903 \u20986 \u39006 \u21029 </label>\
-        <select id="category"\
-                class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500">\
-          <option value="\uc0\u20116 \u37329 \u26448 \u26009 ">\u20116 \u37329 \u26448 \u26009 </option>\
-          <option value="\uc0\u39184 \u36027 ">\u39184 \u36027  / \u20415 \u30070  / \u39154 \u26009 </option>\
-          <option value="\uc0\u27833 \u36039 ">\u27833 \u36039  / \u20572 \u36554 \u36027 </option>\
-          <option value="\uc0\u24037 \u20855 \u25505 \u36092 ">\u24037 \u20855 \u25505 \u36092 </option>\
-          <option value="\uc0\u20854 \u20182 ">\u20854 \u20182 \u38620 \u38917 </option>\
-        </select>\
-      </div>\
-\
-      <!-- \uc0\u29992 \u36884 \u20633 \u35387 \u35498 \u26126  -->\
-      <div>\
-        <label class="block text-xs font-semibold text-slate-500 mb-1">\uc0\u29992 \u36884 \u26126 \u32048  / \u20633 \u35387 </label>\
-        <input type="text" id="note" placeholder="\uc0\u20363 \u22914 : \u20013 \u21644 \u26696 \u22580 \u36023 \u30333 \u37941 \u33258 \u25915 \u34746 \u32114 "\
-               class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />\
-      </div>\
-\
-      <!-- \uc0\u25293 \u29031 \u33287 \u25910 \u25818 \u24977 \u35657  (\u24375 \u21046 \u21069 \u31471 \u22739 \u32302 ) -->\
-      <div>\
-        <label class="block text-xs font-semibold text-slate-500 mb-1">\uc0\u25910 \u25818  / \u30332 \u31080 \u29031 \u29255  <span class="text-rose-500">*</span></label>\
-        \
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" />\
-\
-        <div id="uploadBox" onclick="document.getElementById('cameraInput').click()"\
-             class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center cursor-pointer hover:border-amber-400 transition bg-slate-50">\
-          <div id="uploadPlaceholder" class="space-y-1">\
-            <div class="text-3xl text-slate-400">\uc0\u55357 \u56568 </div>\
-            <p class="text-xs font-medium text-slate-600">\uc0\u40670 \u27492 \u25293 \u29031 \u25110 \u36984 \u25799 \u30456 \u31807 </p>\
-            <p class="text-[10px] text-slate-400">\uc0\u31995 \u32113 \u33258 \u21205 \u22739 \u32302 \u65292 \u19981 \u20308 \u27969 \u37327 </p>\
-          </div>\
-          <div id="previewContainer" class="hidden relative">\
-            <img id="previewImage" class="w-full h-44 object-cover rounded-lg shadow-inner mx-auto" />\
-            <button type="button" onclick="event.stopPropagation(); removePhoto();"\
-                    class="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">\uc0\u10005 </button>\
-            <p id="compressStatus" class="text-[10px] text-emerald-600 mt-1 font-medium"></p>\
-          </div>\
-        </div>\
-      </div>\
-\
-      <!-- \uc0\u36865 \u20986 \u25353 \u37397  -->\
-      <button type="button" id="submitBtn" onclick="submitClaim()"\
-              class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md tap-active transition flex items-center justify-center gap-2">\
-        <span>\uc0\u36865 \u20986 \u22577 \u37559 \u30003 \u35531 </span>\
-      </button>\
-    </div>\
-\
-    <!-- \uc0\u25105 \u30340 \u27511 \u21490 \u33287 \u24453 \u23529 \u26680 \u28165 \u21934  (\u21487 \u25764 \u22238 ) -->\
-    <div class="space-y-2">\
-      <div class="flex items-center justify-between px-1">\
-        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">\uc0\u25105 \u30340 \u36817 \u26399 \u22577 \u37559 \u32000 \u37636 </h3>\
-        <button onclick="loadMyClaims()" class="text-xs text-amber-600 font-medium">\uc0\u37325 \u25972 \u28165 \u21934 </button>\
-      </div>\
-      \
-      <div id="claimsList" class="space-y-2.5">\
-        <div class="text-center py-6 text-xs text-slate-400">\uc0\u36617 \u20837 \u20013 ...</div>\
-      </div>\
-    </div>\
-\
-  </main>\
-\
-  <script>\
-    // 1. \uc0\u21021 \u22987 \u21270  Firebase \u35373 \u23450  (\u27839 \u29992  payroll-attendance \u23560 \u26696 )\
-    const firebaseConfig = \{\
-        apiKey: "AIzaSyCQ98ZWCCOk7ALopTQKjpizcgeyiRu12_I",
-  authDomain: "payroll-attendance-da6b1.firebaseapp.com",
-  projectId: "payroll-attendance-da6b1",
-  storageBucket: "payroll-attendance-da6b1.firebasestorage.app",
-  messagingSenderId: "697411530182",
-  appId: "1:697411530182:web:82a967282a51148c0016c7",
-  measurementId: "G-126PX9RFPE"
-};
-    \};\
-    firebase.initializeApp(firebaseConfig);\
-    const db = firebase.firestore();\
-    const storage = firebase.storage();\
-\
-    // 2. LIFF \uc0\u35373 \u23450 \
-    const MY_LIFF_ID = "2011667192-mzmPgQFd"; // \uc0\u35531 \u22635 \u20837 \u20320 \u30003 \u35531 \u30340  LIFF ID\
-\
-    let currentUserId = "mock_user_01";\
-    let currentUserName = "\uc0\u28204 \u35430 \u24107 \u20613 ";\
-    let compressedImageBlob = null;\
-\
-    // \uc0\u21021 \u22987 \u21270 \u38913 \u38754 \u33287  LIFF\
-    window.addEventListener("DOMContentLoaded", async () => \{\
-      // \uc0\u38928 \u35373 \u26085 \u26399 \u28858 \u20170 \u22825  (YYYY-MM-DD)\
-      document.getElementById("expenseDate").value = new Date().toISOString().split("T")[0];\
-\
-      try \{\
-        await liff.init(\{ liffId: MY_LIFF_ID \});\
-        if (liff.isLoggedIn()) \{\
-          const profile = await liff.getProfile();\
-          currentUserId = profile.userId;\
-          currentUserName = profile.displayName;\
-          document.getElementById("workerProfile").innerText = `\uc0\u55357 \u56439  $\{currentUserName\}`;\
-        \} else \{\
-          // \uc0\u26412 \u22320 \u38283 \u30332 \u38500 \u37679 \u27169 \u24335 \
-          document.getElementById("workerProfile").innerText = `\uc0\u55357 \u56439  \u35370 \u23458 \u27169 \u24335  ($\{currentUserName\})`;\
-        \}\
-      \} catch (err) \{\
-        console.warn("LIFF \uc0\u21021 \u22987 \u21270 \u36339 \u36942  (\u26412 \u22320 \u28204 \u35430 ):", err);\
-        document.getElementById("workerProfile").innerText = `\uc0\u55357 \u56439  \u28204 \u35430 \u24107 \u20613 `;\
-      \}\
-\
-      loadMyClaims();\
-    \});\
-\
-    // 3. \uc0\u30435 \u32893 \u29031 \u29255 \u36984 \u25799 \u20006 \u36879 \u36942  Canvas \u36914 \u34892 \u22739 \u32302 \
-    document.getElementById("cameraInput").addEventListener("change", function(e) \{\
-      const file = e.target.files[0];\
-      if (!file) return;\
-\
-      const reader = new FileReader();\
-      reader.onload = function(event) \{\
-        const img = new Image();\
-        img.onload = function() \{\
-          // \uc0\u22739 \u32302 \u37007 \u36655 \u65306 \u26368 \u22823 \u37002 \u38480 \u21046 \u28858  1280px\
-          const maxDim = 1280;\
-          let width = img.width;\
-          let height = img.height;\
-\
-          if (width > height && width > maxDim) \{\
-            height = Math.round((height * maxDim) / width);\
-            width = maxDim;\
-          \} else if (height > maxDim) \{\
-            width = Math.round((width * maxDim) / height);\
-            height = maxDim;\
-          \}\
-\
-          const canvas = document.createElement("canvas");\
-          canvas.width = width;\
-          canvas.height = height;\
-          const ctx = canvas.getContext("2d");\
-          ctx.drawImage(img, 0, 0, width, height);\
-\
-          // \uc0\u36681 \u25104  JPEG, \u21697 \u36074  0.75\
-          canvas.toBlob(function(blob) \{\
-            compressedImageBlob = blob;\
-            const sizeKB = Math.round(blob.size / 1024);\
-            document.getElementById("previewImage").src = URL.createObjectURL(blob);\
-            document.getElementById("uploadPlaceholder").classList.add("hidden");\
-            document.getElementById("previewContainer").classList.remove("hidden");\
-            document.getElementById("compressStatus").innerText = `\uc0\u30332 \u31080 \u24050 \u22739 \u32302 \u20778 \u21270 \u33267 : $\{sizeKB\} KB`;\
-          \}, "image/jpeg", 0.75);\
-        \};\
-        img.src = event.target.result;\
-      \};\
-      reader.readAsDataURL(file);\
-    \});\
-\
-    function removePhoto() \{\
-      compressedImageBlob = null;\
-      document.getElementById("cameraInput").value = "";\
-      document.getElementById("previewContainer").classList.add("hidden");\
-      document.getElementById("uploadPlaceholder").classList.remove("hidden");\
-    \}\
-\
-    // 4. \uc0\u36865 \u20986 \u22577 \u37559 \u21934 \u33267  Storage \u33287  Firestore\
-    async function submitClaim() \{\
-      const expenseDate = document.getElementById("expenseDate").value;\
-      const amount = parseFloat(document.getElementById("amount").value);\
-      const category = document.getElementById("category").value;\
-      const note = document.getElementById("note").value.trim();\
-\
-      if (!expenseDate) return alert("\uc0\u35531 \u36984 \u25799 \u33457 \u36027 \u26085 \u26399 ");\
-      if (!amount || amount <= 0) return alert("\uc0\u35531 \u36664 \u20837 \u27491 \u30906 \u37329 \u38989 ");\
-      if (!compressedImageBlob) return alert("\uc0\u35531 \u25293 \u19979 \u30332 \u31080 \u25110 \u25910 \u25818 \u24977 \u35657 ");\
-\
-      const submitBtn = document.getElementById("submitBtn");\
-      submitBtn.disabled = true;\
-      submitBtn.innerHTML = "<span>\uc0\u19978 \u20659 \u22739 \u32302 \u29031 \u29255 \u20013 ...</span>";\
-\
-      try \{\
-        const claimId = "claim_" + Date.now();\
-        const monthFolder = expenseDate.substring(0, 7).replace("-", ""); // \uc0\u20363 \u22914  202605\
-        const storagePath = `receipts/$\{monthFolder\}/$\{claimId\}.jpg`;\
-\
-        // \uc0\u19978 \u20659 \u29031 \u29255 \u33267  Storage\
-        const storageRef = storage.ref(storagePath);\
-        const snapshot = await storageRef.put(compressedImageBlob, \{ contentType: "image/jpeg" \});\
-        const imageUrl = await snapshot.ref.getDownloadURL();\
-\
-        submitBtn.innerHTML = "<span>\uc0\u20786 \u23384 \u21934 \u25818 \u20013 ...</span>";\
-\
-        // \uc0\u23531 \u20837  Firestore \u38598 \u21512  petty_cash_claims\
-        await db.collection("petty_cash_claims").doc(claimId).set(\{\
-          id: claimId,\
-          workerName: currentUserName,\
-          lineUserId: currentUserId,\
-          expenseDate: expenseDate,\
-          amount: amount,\
-          category: category,\
-          note: note,\
-          receiptImageUrl: imageUrl,\
-          receiptStoragePath: storagePath,\
-          status: "pending", // pending(\uc0\u24453 \u23529 ), approved(\u24050 \u26680 \u20934 \u27798 \u37559 ), rejected(\u34987 \u36864 \u22238 ), cancelled(\u33258 \u27298 \u25764 \u22238 )\
-          rejectReason: "",\
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),\
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()\
-        \});\
-\
-        alert("\uc0\u9989  \u22577 \u37559 \u21934 \u24050 \u36865 \u20986 \u65292 \u31561 \u24453 \u20027 \u31649 \u23529 \u26680 \u65281 ");\
-        // \uc0\u28165 \u31354 \u34920 \u21934 \
-        document.getElementById("amount").value = "";\
-        document.getElementById("note").value = "";\
-        removePhoto();\
-        loadMyClaims();\
-      \} catch (err) \{\
-        console.error(err);\
-        alert("\uc0\u36865 \u20986 \u22833 \u25943 : " + err.message);\
-      \} finally \{\
-        submitBtn.disabled = false;\
-        submitBtn.innerHTML = "<span>\uc0\u36865 \u20986 \u22577 \u37559 \u30003 \u35531 </span>";\
-      \}\
-    \}\
-\
-    // 5. \uc0\u36617 \u20837 \u35442 \u24107 \u20613 \u36817 \u26399 \u30340 \u21934 \u25818  (\u25903 \u25588 \u21363 \u26178 \u25764 \u22238 )\
-    async function loadMyClaims() \{\
-      const listEl = document.getElementById("claimsList");\
-      listEl.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">\uc0\u26356 \u26032 \u20013 ...</div>`;\
-\
-      try \{\
-        const snapshot = await db.collection("petty_cash_claims")\
-          .where("lineUserId", "==", currentUserId)\
-          .orderBy("createdAt", "desc")\
-          .limit(15)\
-          .get();\
-\
-        if (snapshot.empty) \{\
-          listEl.innerHTML = `<div class="text-center py-6 text-xs text-slate-400 bg-white rounded-xl border border-slate-200">\uc0\u23578 \u28961 \u22577 \u37559 \u32000 \u37636 </div>`;\
-          return;\
-        \}\
-\
-        let html = "";\
-        snapshot.forEach(doc => \{\
-          const c = doc.data();\
-          let badge = "";\
-          let actionBtn = "";\
-\
-          if (c.status === "pending") \{\
-            badge = `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded">\uc0\u24453 \u20027 \u31649 \u23529 \u26680 </span>`;\
-            actionBtn = `<button onclick="cancelClaim('$\{c.id\}')" class="text-xs text-rose-500 border border-rose-200 bg-rose-50 px-2 py-1 rounded-lg hover:bg-rose-100">\uc0\u35492 \u22635 \u25764 \u22238 </button>`;\
-          \} else if (c.status === "approved") \{\
-            badge = `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">\uc0\u24050 \u26680 \u20934 \u27798 \u37559 </span>`;\
-          \} else if (c.status === "rejected") \{\
-            badge = `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded">\uc0\u20027 \u31649 \u36864 \u22238 </span>`;\
-          \} else if (c.status === "cancelled") \{\
-            badge = `<span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded">\uc0\u24050 \u25764 \u22238 </span>`;\
-          \}\
-\
-          html += `\
-            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">\
-              <div class="space-y-1">\
-                <div class="flex items-center gap-2">\
-                  <span class="text-xs font-bold text-slate-700">$\{c.expenseDate\}</span>\
-                  <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">$\{c.category\}</span>\
-                  $\{badge\}\
-                </div>\
-                <div class="text-sm font-extrabold text-slate-800">$$\{c.amount\} <span class="text-xs font-normal text-slate-500">($\{c.note || '\uc0\u28961 \u20633 \u35387 '\})</span></div>\
-                $\{c.rejectReason ? `<div class="text-xs text-rose-500">\uc0\u29702 \u30001 : $\{c.rejectReason\}</div>` : ''\}\
-              </div>\
-              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">\
-                <a href="$\{c.receiptImageUrl\}" target="_blank" class="text-xs text-blue-500 underline">\uc0\u30475 \u25910 \u25818 </a>\
-                $\{actionBtn\}\
-              </div>\
-            </div>\
-          `;\
-        \});\
-        listEl.innerHTML = html;\
-      \} catch (err) \{\
-        listEl.innerHTML = `<div class="text-center py-4 text-xs text-rose-400">\uc0\u35712 \u21462 \u32000 \u37636 \u22833 \u25943 : $\{err.message\}</div>`;\
-      \}\
-    \}\
-\
-    // 6. \uc0\u24107 \u20613 \u33258 \u27298 \u25764 \u22238 \u21934 \u25818 \
-    async function cancelClaim(claimId) \{\
-      if (!confirm("\uc0\u30906 \u23450 \u35201 \u25764 \u22238 \u36889 \u31558 \u22577 \u37559 \u30003 \u35531 \u21966 \u65311 ")) return;\
-      try \{\
-        await db.collection("petty_cash_claims").doc(claimId).update(\{\
-          status: "cancelled",\
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()\
-        \});\
-        alert("\uc0\u24050 \u25764 \u22238 \u35442 \u21934 \u25818 \u65281 ");\
-        loadMyClaims();\
-      \} catch (err) \{\
-        alert("\uc0\u25764 \u22238 \u22833 \u25943 : " + err.message);\
-      \}\
-    \}\
-  </script>\
-</body>\
-</html>}
+  <main class="max-w-md mx-auto p-4 space-y-5">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <h2 class="text-base font-bold text-slate-700 border-b pb-2">✏️ 填寫報銷明細</h2>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1">花費日期</label>
+        <input type="date" id="expenseDate" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-amber-500" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1">金額 (元) <span class="text-rose-500">*</span></label>
+        <div class="relative">
+          <span class="absolute left-3 top-2.5 text-slate-400 font-bold">$</span>
+          <input type="number" id="amount" placeholder="例如: 850" min="1" inputmode="numeric" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-base font-bold text-slate-800" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1">支出類別</label>
+        <select id="category" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium">
+          <option value="五金材料">五金材料</option>
+          <option value="餐費">餐費 / 便當 / 飲料</option>
+          <option value="油資">油資 / 停車費</option>
+          <option value="工具採購">工具採購</option>
+          <option value="其他">其他雜項</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1">用途明細 / 備註</label>
+        <input type="text" id="note" placeholder="例如: 買螺絲、膨脹螺栓" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1">收據 / 發票照片 <span class="text-rose-500">*</span></label>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" />
+        <div id="uploadBox" onclick="document.getElementById('cameraInput').click()" class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center cursor-pointer bg-slate-50">
+          <div id="uploadPlaceholder" class="space-y-1">
+            <div class="text-3xl text-slate-400">📸</div>
+            <p class="text-xs font-medium text-slate-600">點此拍照或選擇相簿</p>
+            <p class="text-[10px] text-slate-400">系統自動壓縮，不佔空間</p>
+          </div>
+          <div id="previewContainer" class="hidden relative">
+            <img id="previewImage" class="w-full h-44 object-cover rounded-lg shadow-inner mx-auto" />
+            <button type="button" onclick="event.stopPropagation(); removePhoto();" class="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 text-xs">✕</button>
+            <p id="compressStatus" class="text-[10px] text-emerald-600 mt-1 font-medium"></p>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="submitBtn" onclick="submitClaim()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md transition">
+        送出報銷申請
+      </button>
+    </div>
+
+    <div class="space-y-2">
+      <div class="flex items-center justify-between px-1">
+        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">我的近期報銷紀錄</h3>
+        <button onclick="loadMyClaims()" class="text-xs text-amber-600 font-medium">重整清單</button>
+      </div>
+      <div id="claimsList" class="space-y-2.5">
+        <div class="text-center py-6 text-xs text-slate-400">載入中...</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSy...", // 請換成專案設定的 apiKey
+      authDomain: "payroll-attendance-da6b1.firebaseapp.com",
+      projectId: "payroll-attendance-da6b1",
+      storageBucket: "payroll-attendance-da6b1.firebasestorage.app",
+      messagingSenderId: "123456789",
+      appId: "1:...:web:..."
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    const MY_LIFF_ID = "YOUR_LIFF_ID"; // 請填入你的 LIFF ID
+
+    let currentUserId = "mock_user_01";
+    let currentUserName = "測試師傅";
+    let compressedImageBlob = null;
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      document.getElementById("expenseDate").value = new Date().toISOString().split("T")[0];
+      try {
+        await liff.init({ liffId: MY_LIFF_ID });
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          currentUserId = profile.userId;
+          currentUserName = profile.displayName;
+          document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
+        } else {
+          document.getElementById("workerProfile").innerText = `👷 訪客模式 (${currentUserName})`;
+        }
+      } catch (err) {
+        document.getElementById("workerProfile").innerText = `👷 測試師傅`;
+      }
+      loadMyClaims();
+    });
+
+    document.getElementById("cameraInput").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1280;
+          let width = img.width, height = img.height;
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(function(blob) {
+            compressedImageBlob = blob;
+            document.getElementById("previewImage").src = URL.createObjectURL(blob);
+            document.getElementById("uploadPlaceholder").classList.add("hidden");
+            document.getElementById("previewContainer").classList.remove("hidden");
+            document.getElementById("compressStatus").innerText = `發票已壓縮至: ${Math.round(blob.size / 1024)} KB`;
+          }, "image/jpeg", 0.75);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function removePhoto() {
+      compressedImageBlob = null;
+      document.getElementById("cameraInput").value = "";
+      document.getElementById("previewContainer").classList.add("hidden");
+      document.getElementById("uploadPlaceholder").classList.remove("hidden");
+    }
+
+    async function submitClaim() {
+      const expenseDate = document.getElementById("expenseDate").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const category = document.getElementById("category").value;
+      const note = document.getElementById("note").value.trim();
+
+      if (!expenseDate) return alert("請選擇花費日期");
+      if (!amount || amount <= 0) return alert("請輸入正確金額");
+      if (!compressedImageBlob) return alert("請拍下發票或收據憑證");
+
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = true;
+      submitBtn.innerText = "上傳壓縮照片中...";
+
+      try {
+        const claimId = "claim_" + Date.now();
+        const monthFolder = expenseDate.substring(0, 7).replace("-", "");
+        const storagePath = `receipts/${monthFolder}/${claimId}.jpg`;
+
+        const storageRef = storage.ref(storagePath);
+        const snapshot = await storageRef.put(compressedImageBlob, { contentType: "image/jpeg" });
+        const imageUrl = await snapshot.ref.getDownloadURL();
+
+        submitBtn.innerText = "儲存單據中...";
+
+        await db.collection("petty_cash_claims").doc(claimId).set({
+          id: claimId,
+          workerName: currentUserName,
+          lineUserId: currentUserId,
+          expenseDate: expenseDate,
+          amount: amount,
+          category: category,
+          note: note,
+          receiptImageUrl: imageUrl,
+          receiptStoragePath: storagePath,
+          status: "pending",
+          rejectReason: "",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("✅ 報銷單已送出，等待主管審核！");
+        document.getElementById("amount").value = "";
+        document.getElementById("note").value = "";
+        removePhoto();
+        loadMyClaims();
+      } catch (err) {
+        alert("送出失敗: " + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "送出報銷申請";
+      }
+    }
+
+    async function loadMyClaims() {
+      const listEl = document.getElementById("claimsList");
+      listEl.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">更新中...</div>`;
+      try {
+        const snapshot = await db.collection("petty_cash_claims")
+          .where("lineUserId", "==", currentUserId)
+          .orderBy("createdAt", "desc")
+          .limit(15)
+          .get();
+
+        if (snapshot.empty) {
+          listEl.innerHTML = `<div class="text-center py-6 text-xs text-slate-400 bg-white rounded-xl border border-slate-200">尚無報銷紀錄</div>`;
+          return;
+        }
+
+        let html = "";
+        snapshot.forEach(doc => {
+          const c = doc.data();
+          let badge = c.status === "pending" ? `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded">待審核</span>`
+                    : c.status === "approved" ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">已沖銷</span>`
+                    : `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded">已退回</span>`;
+
+          let actionBtn = c.status === "pending"
+            ? `<button onclick="cancelClaim('${c.id}')" class="text-xs text-rose-500 border border-rose-200 bg-rose-50 px-2 py-1 rounded-lg">撤回</button>` : "";
+
+          html += `
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-slate-700">${c.expenseDate}</span>
+                  <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${c.category}</span>
+                  ${badge}
+                </div>
+                <div class="text-sm font-extrabold text-slate-800">$${c.amount} <span class="text-xs font-normal text-slate-500">(${c.note || '無備註'})</span></div>
+                ${c.rejectReason ? `<div class="text-xs text-rose-500">理由: ${c.rejectReason}</div>` : ''}
+              </div>
+              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+                <a href="${c.receiptImageUrl}" target="_blank" class="text-xs text-blue-500 underline">看收據</a>
+                ${actionBtn}
+              </div>
+            </div>
+          `;
+        });
+        listEl.innerHTML = html;
+      } catch (err) {
+        listEl.innerHTML = `<div class="text-center py-4 text-xs text-rose-400">讀取紀錄失敗: ${err.message}</div>`;
+      }
+    }
+
+    async function cancelClaim(claimId) {
+      if (!confirm("確定要撤回這筆報銷申請嗎？")) return;
+      try {
+        await db.collection("petty_cash_claims").doc(claimId).update({
+          status: "cancelled",
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("已撤回該單據！");
+        loadMyClaims();
+      } catch (err) {
+        alert("撤回失敗: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
