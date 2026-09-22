@@ -123,117 +123,14 @@ const analytics = getAnalytics(app);
     let currentUserName = "測試師傅";
     let compressedImageBlob = null;
 
-    window.addEventListener("DOMContentLoaded", async () => {
-      document.getElementById("expenseDate").value = new Date().toISOString().split("T")[0];
-      try {
-        await liff.init({ liffId: MY_LIFF_ID });
-        if (liff.isLoggedIn()) {
-          const profile = await liff.getProfile();
-          currentUserId = profile.userId;
-          currentUserName = profile.displayName;
-          document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
-        } else {
-          document.getElementById("workerProfile").innerText = `👷 訪客模式 (${currentUserName})`;
-        }
-      } catch (err) {
-        document.getElementById("workerProfile").innerText = `👷 測試師傅`;
-      }
-      loadMyClaims();
-    });
-
-    document.getElementById("cameraInput").addEventListener("change", function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-          const maxDim = 1280;
-          let width = img.width, height = img.height;
-          if (width > height && width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width; canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob(function(blob) {
-            compressedImageBlob = blob;
-            document.getElementById("previewImage").src = URL.createObjectURL(blob);
-            document.getElementById("uploadPlaceholder").classList.add("hidden");
-            document.getElementById("previewContainer").classList.remove("hidden");
-            document.getElementById("compressStatus").innerText = `發票已壓縮至: ${Math.round(blob.size / 1024)} KB`;
-          }, "image/jpeg", 0.75);
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    function removePhoto() {
-      compressedImageBlob = null;
-      document.getElementById("cameraInput").value = "";
-      document.getElementById("previewContainer").classList.add("hidden");
-      document.getElementById("uploadPlaceholder").classList.remove("hidden");
+    rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
     }
-
-    async function submitClaim() {
-      const expenseDate = document.getElementById("expenseDate").value;
-      const amount = parseFloat(document.getElementById("amount").value);
-      const category = document.getElementById("category").value;
-      const note = document.getElementById("note").value.trim();
-
-      if (!expenseDate) return alert("請選擇花費日期");
-      if (!amount || amount <= 0) return alert("請輸入正確金額");
-      if (!compressedImageBlob) return alert("請拍下發票或收據憑證");
-
-      const submitBtn = document.getElementById("submitBtn");
-      submitBtn.disabled = true;
-      submitBtn.innerText = "上傳壓縮照片中...";
-
-      try {
-        const claimId = "claim_" + Date.now();
-        const monthFolder = expenseDate.substring(0, 7).replace("-", "");
-        const storagePath = `receipts/${monthFolder}/${claimId}.jpg`;
-
-        const storageRef = storage.ref(storagePath);
-        const snapshot = await storageRef.put(compressedImageBlob, { contentType: "image/jpeg" });
-        const imageUrl = await snapshot.ref.getDownloadURL();
-
-        submitBtn.innerText = "儲存單據中...";
-
-        await db.collection("petty_cash_claims").doc(claimId).set({
-          id: claimId,
-          workerName: currentUserName,
-          lineUserId: currentUserId,
-          expenseDate: expenseDate,
-          amount: amount,
-          category: category,
-          note: note,
-          receiptImageUrl: imageUrl,
-          receiptStoragePath: storagePath,
-          status: "pending",
-          rejectReason: "",
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        alert("✅ 報銷單已送出，等待主管審核！");
-        document.getElementById("amount").value = "";
-        document.getElementById("note").value = "";
-        removePhoto();
-        loadMyClaims();
-      } catch (err) {
-        alert("送出失敗: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerText = "送出報銷申請";
-      }
-    }
+  }
+}
 
     async function loadMyClaims() {
       const listEl = document.getElementById("claimsList");
