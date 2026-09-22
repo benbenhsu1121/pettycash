@@ -91,18 +91,33 @@
 
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSy...", // 請換成專案設定的 apiKey
-      authDomain: "payroll-attendance-da6b1.firebaseapp.com",
-      projectId: "payroll-attendance-da6b1",
-      storageBucket: "payroll-attendance-da6b1.firebasestorage.app",
-      messagingSenderId: "123456789",
-      appId: "1:...:web:..."
+      // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCQ98ZWCCOk7ALopTQKjpizcgeyiRu12_I",
+  authDomain: "payroll-attendance-da6b1.firebaseapp.com",
+  projectId: "payroll-attendance-da6b1",
+  storageBucket: "payroll-attendance-da6b1.firebasestorage.app",
+  messagingSenderId: "697411530182",
+  appId: "1:697411530182:web:82a967282a51148c0016c7",
+  measurementId: "G-126PX9RFPE"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const storage = firebase.storage();
 
-    const MY_LIFF_ID = "YOUR_LIFF_ID"; // 請填入你的 LIFF ID
+    const MY_LIFF_ID = "2011667192-mzmPgQFd"; // 請填入你的 LIFF ID
 
     let currentUserId = "mock_user_01";
     let currentUserName = "測試師傅";
