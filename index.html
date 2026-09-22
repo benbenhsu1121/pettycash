@@ -126,9 +126,10 @@
         if (liff.isLoggedIn()) {
           const profile = await liff.getProfile();
           currentUserId = profile.userId;
-          currentUserName = profile.displayName; // 預設使用 LINE 暱稱
+          // 優先採用 LINE 暱稱作為基準，絕不使用「師傅」或「測試師傅」
+          currentUserName = profile.displayName || "LINE 師傅";
 
-          // 🌟 從 check_ins 集合查詢該師傅在打卡系統中的真實名稱
+          // 嘗試去 check_ins 查詢打卡時綁定的本名
           try {
             const checkInSnap = await db.collection("check_ins")
               .where("lineUserId", "==", currentUserId)
@@ -136,13 +137,13 @@
               .get();
 
             if (!checkInSnap.empty) {
-              const checkInData = checkInSnap.docs[0].data();
-              if (checkInData.displayName) {
-                currentUserName = checkInData.displayName; // 對應到打卡系統姓名
+              const data = checkInSnap.docs[0].data();
+              if (data.displayName && data.displayName.trim() !== "") {
+                currentUserName = data.displayName;
               }
             }
-          } catch (e) {
-            console.warn("無法取得打卡姓名，使用 LINE 暱稱:", e);
+          } catch (queryErr) {
+            console.warn("無法取得 check_ins 姓名，採用 LINE 暱稱:", queryErr);
           }
 
           document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
@@ -151,11 +152,13 @@
         }
       } catch (err) {
         console.error("LIFF 啟用失敗:", err);
-        document.getElementById("workerProfile").innerText = `👷 師傅 (離線)`;
+        // 若在一般電腦瀏覽器測試，可自訂名稱
+        currentUserName = "測試員";
+        document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
       }
 
       loadMyClaims();
-    });
+    }););
 
     // 拍照壓縮邏輯
     document.getElementById("cameraInput").addEventListener("change", function(e) {
