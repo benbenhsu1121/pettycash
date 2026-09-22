@@ -27,10 +27,16 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
       <h2 class="text-base font-bold text-slate-700 border-b pb-2">✏️ 填寫報銷明細</h2>
 
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 mb-1">花費日期</label>
-        <input type="date" id="expenseDate" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-amber-500" />
-      </div>
+      <!-- 修正後的寫法 -->
+<div class="w-full overflow-hidden">
+  <label class="block text-xs font-semibold text-slate-500 mb-1">花費日期</label>
+  <input 
+    type="date" 
+    id="expenseDate" 
+    class="w-full max-w-full box-border bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none" 
+    style="-webkit-appearance: none; min-height: 44px;"
+  />
+</div>
 
       <div>
         <label class="block text-xs font-semibold text-slate-500 mb-1">金額 (元) <span class="text-rose-500">*</span></label>
