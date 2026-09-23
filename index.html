@@ -199,7 +199,7 @@
 
       // 如果始終沒有姓名，彈出輸入框請師傅輸入一次
       if (!currentUserName) {
-        const input = prompt("【初次使用】請輸入您的姓名（例如：彭士偉、許老邊）：");
+        const input = prompt("【初次使用】請輸入您的公司系統姓名不是Line名稱（例如：李麒豪）：");
         currentUserName = (input && input.trim()) ? input.trim() : "現場師傅";
         localStorage.setItem("petty_cash_name", currentUserName);
       }
