@@ -17,8 +17,8 @@
         <span class="text-xl">🧾</span>
         <h1 class="font-bold text-lg">零用金報銷申請</h1>
       </div>
-      <div id="workerProfile" class="text-xs bg-amber-700/60 px-2.5 py-1 rounded-full text-amber-100">
-        載入身分中...
+      <div id="workerProfile" onclick="changeMyName()" class="text-xs bg-amber-700/80 px-2.5 py-1 rounded-full text-white font-medium cursor-pointer shadow-sm">
+        點此設定身分
       </div>
     </div>
   </header>
@@ -121,31 +121,115 @@
     const db = firebase.firestore();
     const storage = firebase.storage();
 
-    loadMyClaims()
+    const MY_LIFF_ID = "2011667192-nB1wlENX";
+
+    let currentUserId = localStorage.getItem("petty_cash_uid") || ("user_" + Date.now());
+    let currentUserName = localStorage.getItem("petty_cash_name") || "";
+    let compressedImageBlob = null;
+
+    // 手動點擊右上角修改名稱
+    function changeMyName() {
+      const newName = prompt("請輸入您的姓名（例如：彭士偉 或 許老邊）：", currentUserName || "");
+      if (newName && newName.trim() !== "") {
+        currentUserName = newName.trim();
+        localStorage.setItem("petty_cash_name", currentUserName);
+        document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
+        loadMyBalance();
+        loadMyClaims();
+      }
+    }
+
+    // 啟動流程：不卡死、全防護
+    window.addEventListener("DOMContentLoaded", function() {
+      // 1. 立即填入今天日期，不等待網路
+      try {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        document.getElementById("expenseDate").value = y + "-" + m + "-" + d;
+      } catch (e) {
+        console.error("日期設定失敗", e);
+      }
+
+      // 2. 如果手機本地已有姓名，立即呈現
+      if (currentUserName) {
+        document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
+        loadMyBalance();
+        loadMyClaims();
+      }
+
+      // 3. 背景非同步抓取 LIFF 身分（加超時保護，絕不卡死畫面）
+      initLiffAsync();
     });
 
-    // 讀取個人即時餘額
+    async function initLiffAsync() {
+      const timeoutPromise = new Promise(function(resolve) {
+        setTimeout(resolve, 2500, "timeout");
+      });
+
+      try {
+        const liffPromise = liff.init({ liffId: MY_LIFF_ID });
+        const result = await Promise.race([liffPromise, timeoutPromise]);
+
+        if (result !== "timeout" && liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          currentUserId = profile.userId;
+          localStorage.setItem("petty_cash_uid", currentUserId);
+
+          // 嘗試對應 check_ins 名稱
+          let matchedName = profile.displayName || "";
+          try {
+            const snap = await db.collection("check_ins").where("lineUserId", "==", currentUserId).limit(1).get();
+            if (!snap.empty && snap.docs[0].data().displayName) {
+              matchedName = snap.docs[0].data().displayName;
+            }
+          } catch (e) {
+            console.warn("未對應到打卡姓名");
+          }
+
+          if (matchedName) {
+            currentUserName = matchedName;
+            localStorage.setItem("petty_cash_name", currentUserName);
+          }
+        }
+      } catch (err) {
+        console.warn("LIFF 啟用略過:", err);
+      }
+
+      // 如果始終沒有姓名，彈出輸入框請師傅輸入一次
+      if (!currentUserName) {
+        const input = prompt("【初次使用】請輸入您的姓名（例如：彭士偉、許老邊）：");
+        currentUserName = (input && input.trim()) ? input.trim() : "現場師傅";
+        localStorage.setItem("petty_cash_name", currentUserName);
+      }
+
+      document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
+      loadMyBalance();
+      loadMyClaims();
+    }
+
+    // 餘額讀取（防護版）
     function loadMyBalance() {
       const balanceEl = document.getElementById("myBalanceAmount");
       const tipEl = document.getElementById("balanceTip");
       const timeEl = document.getElementById("balanceUpdateTime");
 
-      if (!currentUserName || currentUserName === "師傅") {
-        timeEl.innerText = "已就緒";
+      if (!currentUserName) {
+        timeEl.innerText = "請先設定姓名";
         return;
       }
 
-      db.collection("worker_balances").doc(currentUserName)
-        .onSnapshot(doc => {
+      try {
+        db.collection("worker_balances").doc(currentUserName).onSnapshot(function(doc) {
           if (doc.exists) {
-            const data = doc.data();
-            const bal = data.balance || 0;
+            const bal = doc.data().balance || 0;
             if (bal < 0) {
-              balanceEl.innerText = `${Math.abs(bal)}`;
+              balanceEl.innerText = String(Math.abs(bal));
               balanceEl.className = "text-3xl font-extrabold text-rose-400";
               tipEl.innerText = "主管待撥付 / 待補款給您";
             } else if (bal > 0) {
-              balanceEl.innerText = `+${bal}`;
+              balanceEl.innerText = "+" + bal;
               balanceEl.className = "text-3xl font-extrabold text-emerald-400";
               tipEl.innerText = "手頭預撥零用金餘額";
             } else {
@@ -153,17 +237,20 @@
               balanceEl.className = "text-3xl font-extrabold text-slate-200";
               tipEl.innerText = "款項已結清沖銷";
             }
-            timeEl.innerText = "即時連線";
+            timeEl.innerText = "已連線";
           } else {
             balanceEl.innerText = "0";
             balanceEl.className = "text-3xl font-extrabold text-slate-200";
             tipEl.innerText = "尚無核銷餘額紀錄";
-            timeEl.innerText = "即時連線";
+            timeEl.innerText = "已就緒";
           }
-        }, err => {
-          console.warn("餘額讀取警告:", err);
-          timeEl.innerText = "未設定餘額";
+        }, function(err) {
+          console.warn("餘額監聽被擋:", err);
+          timeEl.innerText = "無資料";
         });
+      } catch (e) {
+        timeEl.innerText = "無資料";
+      }
     }
 
     // 拍照壓縮
@@ -192,7 +279,7 @@
             document.getElementById("previewImage").src = URL.createObjectURL(blob);
             document.getElementById("uploadPlaceholder").classList.add("hidden");
             document.getElementById("previewContainer").classList.remove("hidden");
-            document.getElementById("compressStatus").innerText = `發票已壓縮至: ${Math.round(blob.size / 1024)} KB`;
+            document.getElementById("compressStatus").innerText = "發票已壓縮至: " + Math.round(blob.size / 1024) + " KB";
           }, "image/jpeg", 0.75);
         };
         img.src = event.target.result;
@@ -207,7 +294,7 @@
       document.getElementById("uploadPlaceholder").classList.remove("hidden");
     }
 
-    // 送出報銷單據
+    // 送出報銷單
     async function submitClaim() {
       const expenseDate = document.getElementById("expenseDate").value;
       const amount = parseFloat(document.getElementById("amount").value);
@@ -218,6 +305,11 @@
       if (!amount || amount <= 0) return alert("請輸入正確金額");
       if (!compressedImageBlob) return alert("請拍下發票或收據憑證");
 
+      if (!currentUserName) {
+        changeMyName();
+        if (!currentUserName) return alert("請先設定您的姓名後再送出");
+      }
+
       const submitBtn = document.getElementById("submitBtn");
       submitBtn.disabled = true;
       submitBtn.innerText = "上傳照片中...";
@@ -225,16 +317,14 @@
       try {
         const claimId = "claim_" + Date.now();
         const monthFolder = expenseDate.substring(0, 7).replace("-", "");
-        const storagePath = `receipts/${monthFolder}/${claimId}.jpg`;
+        const storagePath = "receipts/" + monthFolder + "/" + claimId + ".jpg";
 
-        // 上傳照片
         const storageRef = storage.ref(storagePath);
         const snapshot = await storageRef.put(compressedImageBlob, { contentType: "image/jpeg" });
         const imageUrl = await snapshot.ref.getDownloadURL();
 
         submitBtn.innerText = "儲存單據中...";
 
-        // 寫入 Firestore
         await db.collection("petty_cash_claims").doc(claimId).set({
           id: claimId,
           workerName: currentUserName,
@@ -273,22 +363,22 @@
           .get();
 
         if (snapshot.empty) {
-          listEl.innerHTML = `<div class="text-center py-6 text-xs text-slate-400 bg-white rounded-xl border border-slate-200">尚無報銷紀錄</div>`;
+          listEl.innerHTML = '<div class="text-center py-6 text-xs text-slate-400 bg-white rounded-xl border border-slate-200">尚無報銷紀錄</div>';
           return;
         }
 
         let claims = [];
-        snapshot.forEach(doc => claims.push(doc.data()));
-        claims.sort((a, b) => (b.expenseDate > a.expenseDate ? 1 : -1));
+        snapshot.forEach(function(doc) { claims.push(doc.data()); });
+        claims.sort(function(a, b) { return (b.expenseDate > a.expenseDate ? 1 : -1); });
 
         let html = "";
-        claims.forEach(c => {
-          let badge = c.status === "pending" ? `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded">待審核</span>`
-                    : c.status === "approved" ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">已沖銷</span>`
-                    : `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded">已退回</span>`;
+        claims.forEach(function(c) {
+          let badge = c.status === "pending" ? '<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded">待審核</span>'
+                    : c.status === "approved" ? '<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">已沖銷</span>'
+                    : '<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded">已退回</span>';
 
           let actionBtn = c.status === "pending"
-            ? `<button onclick="cancelClaim('${c.id}')" class="text-xs text-rose-500 border border-rose-200 bg-rose-50 px-2 py-1 rounded-lg">撤回</button>` : "";
+            ? '<button onclick="cancelClaim(\'' + c.id + '\')" class="text-xs text-rose-500 border border-rose-200 bg-rose-50 px-2 py-1 rounded-lg">撤回</button>' : "";
 
           html += `
             <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
@@ -310,7 +400,7 @@
         });
         listEl.innerHTML = html;
       } catch (err) {
-        listEl.innerHTML = `<div class="text-center py-4 text-xs text-rose-500">載入失敗: ${err.message}</div>`;
+        listEl.innerHTML = '<div class="text-center py-4 text-xs text-rose-500">載入失敗: ' + err.message + '</div>';
       }
     }
 
