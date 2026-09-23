@@ -23,32 +23,32 @@
     </div>
   </header>
 
-  <main class="max-w-md mx-auto p-4 space-y-5">
-    !-- 🌟 師傅個人專屬餘額卡片 -->
-    <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-sm border border-slate-700">
+  <main class="max-w-md mx-auto p-4 space-y-4">
+    <!-- 師傅個人專屬餘額卡片 -->
+    <div class="bg-slate-800 text-white rounded-2xl p-4 shadow-sm border border-slate-700">
       <div class="flex items-center justify-between text-xs text-slate-300 mb-1">
         <span>我的待結算零用金</span>
-        <span id="balanceUpdateTime" class="text-[10px] text-slate-400">讀取中...</span>
+        <span id="balanceUpdateTime" class="text-[10px] text-slate-400">連線中...</span>
       </div>
       <div class="flex items-baseline gap-1 mt-1">
-        <span id="myBalanceAmount" class="text-3xl font-extrabold text-amber-400">---</span>
+        <span id="myBalanceAmount" class="text-3xl font-extrabold text-amber-400">0</span>
         <span class="text-xs text-slate-300 font-medium">元</span>
       </div>
       <p id="balanceTip" class="text-[11px] text-slate-400 mt-1">主管審核通過後，餘額將自動更新</p>
     </div>
+
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
       <h2 class="text-base font-bold text-slate-700 border-b pb-2">✏️ 填寫報銷明細</h2>
 
-      <!-- 修正後的寫法 -->
-<div class="w-full overflow-hidden">
-  <label class="block text-xs font-semibold text-slate-500 mb-1">花費日期</label>
-  <input 
-    type="date" 
-    id="expenseDate" 
-    class="w-full max-w-full box-border bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none" 
-    style="-webkit-appearance: none; min-height: 44px;"
-  />
-</div>
+      <div class="w-full overflow-hidden">
+        <label class="block text-xs font-semibold text-slate-500 mb-1">花費日期</label>
+        <input 
+          type="date" 
+          id="expenseDate" 
+          class="w-full max-w-full box-border bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none" 
+          style="-webkit-appearance: none; min-height: 44px;"
+        />
+      </div>
 
       <div>
         <label class="block text-xs font-semibold text-slate-500 mb-1">金額 (元) <span class="text-rose-500">*</span></label>
@@ -108,7 +108,6 @@
   </main>
 
   <script>
-    // 🌟 正確乾淨的 Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyCQ98ZWCCOk7ALopTQKjpizcgeyiRu12_I",
       authDomain: "payroll-attendance-da6b1.firebaseapp.com",
@@ -122,14 +121,12 @@
     const db = firebase.firestore();
     const storage = firebase.storage();
 
-    // 正確的零用金 LIFF ID
     const MY_LIFF_ID = "2011667192-nB1wlENX";
 
-    let currentUserId = "test_user_01";
+    let currentUserId = "mock_user_01";
     let currentUserName = "師傅";
     let compressedImageBlob = null;
 
-    // 🌟 啟動：初始化 LINE LIFF 並自動從打卡系統對應員工姓名
     window.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("expenseDate").value = new Date().toISOString().split("T")[0];
 
@@ -138,10 +135,8 @@
         if (liff.isLoggedIn()) {
           const profile = await liff.getProfile();
           currentUserId = profile.userId;
-          // 優先採用 LINE 暱稱作為基準，絕不使用「師傅」或「測試師傅」
           currentUserName = profile.displayName || "LINE 師傅";
 
-          // 嘗試去 check_ins 查詢打卡時綁定的本名
           try {
             const checkInSnap = await db.collection("check_ins")
               .where("lineUserId", "==", currentUserId)
@@ -155,7 +150,7 @@
               }
             }
           } catch (queryErr) {
-            console.warn("無法取得 check_ins 姓名，採用 LINE 暱稱:", queryErr);
+            console.warn("未查到打卡系統名稱，沿用 LINE 暱稱:", queryErr);
           }
 
           document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
@@ -163,16 +158,58 @@
           document.getElementById("workerProfile").innerText = `👷 訪客模式`;
         }
       } catch (err) {
-        console.error("LIFF 啟用失敗:", err);
-        // 若在一般電腦瀏覽器測試，可自訂名稱
-        currentUserName = "測試員";
-        document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
+        console.warn("LIFF 初始化備案:", err);
+        document.getElementById("workerProfile").innerText = `👷 離線師傅`;
       }
 
+      // 無論身分是否解析成功，均呼叫餘額與紀錄載入
+      loadMyBalance();
       loadMyClaims();
-    }););
+    });
 
-    // 拍照壓縮邏輯
+    // 讀取個人即時餘額
+    function loadMyBalance() {
+      const balanceEl = document.getElementById("myBalanceAmount");
+      const tipEl = document.getElementById("balanceTip");
+      const timeEl = document.getElementById("balanceUpdateTime");
+
+      if (!currentUserName || currentUserName === "師傅") {
+        timeEl.innerText = "已就緒";
+        return;
+      }
+
+      db.collection("worker_balances").doc(currentUserName)
+        .onSnapshot(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            const bal = data.balance || 0;
+            if (bal < 0) {
+              balanceEl.innerText = `${Math.abs(bal)}`;
+              balanceEl.className = "text-3xl font-extrabold text-rose-400";
+              tipEl.innerText = "主管待撥付 / 待補款給您";
+            } else if (bal > 0) {
+              balanceEl.innerText = `+${bal}`;
+              balanceEl.className = "text-3xl font-extrabold text-emerald-400";
+              tipEl.innerText = "手頭預撥零用金餘額";
+            } else {
+              balanceEl.innerText = "0";
+              balanceEl.className = "text-3xl font-extrabold text-slate-200";
+              tipEl.innerText = "款項已結清沖銷";
+            }
+            timeEl.innerText = "即時連線";
+          } else {
+            balanceEl.innerText = "0";
+            balanceEl.className = "text-3xl font-extrabold text-slate-200";
+            tipEl.innerText = "尚無核銷餘額紀錄";
+            timeEl.innerText = "即時連線";
+          }
+        }, err => {
+          console.warn("餘額讀取警告:", err);
+          timeEl.innerText = "未設定餘額";
+        });
+    }
+
+    // 拍照壓縮
     document.getElementById("cameraInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -205,46 +242,7 @@
       };
       reader.readAsDataURL(file);
     });
-    // 監聽並顯示師傅個人的餘額
-    function loadMyBalance() {
-      if (!currentUserName || currentUserName === "師傅") return;
 
-      db.collection("worker_balances").doc(currentUserName)
-        .onSnapshot(doc => {
-          const balanceEl = document.getElementById("myBalanceAmount");
-          const tipEl = document.getElementById("balanceTip");
-          const timeEl = document.getElementById("balanceUpdateTime");
-
-          if (doc.exists) {
-            const data = doc.data();
-            const bal = data.balance || 0;
-            
-            if (bal < 0) {
-              balanceEl.innerText = `${Math.abs(bal)}`;
-              balanceEl.className = "text-3xl font-extrabold text-rose-400";
-              tipEl.innerText = "主管待撥付 / 待補款給您";
-            } else if (bal > 0) {
-              balanceEl.innerText = `+${bal}`;
-              balanceEl.className = "text-3xl font-extrabold text-emerald-400";
-              tipEl.innerText = "您手頭上持有的預撥零用金餘額";
-            } else {
-              balanceEl.innerText = "0";
-              balanceEl.className = "text-3xl font-extrabold text-slate-200";
-              tipEl.innerText = "款項已全數結清沖銷";
-            }
-
-            if (data.updatedAt) {
-              timeEl.innerText = "已更新";
-            }
-          } else {
-            balanceEl.innerText = "0";
-            tipEl.innerText = "尚無核銷餘額紀錄";
-            timeEl.innerText = "無資料";
-          }
-        }, err => {
-          console.warn("無法取得餘額:", err);
-        });
-    }
     function removePhoto() {
       compressedImageBlob = null;
       document.getElementById("cameraInput").value = "";
@@ -272,17 +270,17 @@
         const monthFolder = expenseDate.substring(0, 7).replace("-", "");
         const storagePath = `receipts/${monthFolder}/${claimId}.jpg`;
 
-        // 1. 上傳照片
+        // 上傳照片
         const storageRef = storage.ref(storagePath);
         const snapshot = await storageRef.put(compressedImageBlob, { contentType: "image/jpeg" });
         const imageUrl = await snapshot.ref.getDownloadURL();
 
         submitBtn.innerText = "儲存單據中...";
 
-        // 2. 寫入資料庫
+        // 寫入 Firestore
         await db.collection("petty_cash_claims").doc(claimId).set({
           id: claimId,
-          workerName: currentUserName, // 🌟 正確寫入師傅打卡名稱
+          workerName: currentUserName,
           lineUserId: currentUserId,
           expenseDate: expenseDate,
           amount: amount,
@@ -301,7 +299,7 @@
         removePhoto();
         loadMyClaims();
       } catch (err) {
-        alert("⚠️ 錯誤發生: " + err.message);
+        alert("⚠️ 送出失敗: " + err.message);
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = "送出報銷申請";
