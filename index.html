@@ -121,50 +121,7 @@
     const db = firebase.firestore();
     const storage = firebase.storage();
 
-    const MY_LIFF_ID = "2011667192-nB1wlENX";
-
-    let currentUserId = "mock_user_01";
-    let currentUserName = "師傅";
-    let compressedImageBlob = null;
-
-    window.addEventListener("DOMContentLoaded", async () => {
-      document.getElementById("expenseDate").value = new Date().toISOString().split("T")[0];
-
-      try {
-        await liff.init({ liffId: MY_LIFF_ID });
-        if (liff.isLoggedIn()) {
-          const profile = await liff.getProfile();
-          currentUserId = profile.userId;
-          currentUserName = profile.displayName || "LINE 師傅";
-
-          try {
-            const checkInSnap = await db.collection("check_ins")
-              .where("lineUserId", "==", currentUserId)
-              .limit(1)
-              .get();
-
-            if (!checkInSnap.empty) {
-              const data = checkInSnap.docs[0].data();
-              if (data.displayName && data.displayName.trim() !== "") {
-                currentUserName = data.displayName;
-              }
-            }
-          } catch (queryErr) {
-            console.warn("未查到打卡系統名稱，沿用 LINE 暱稱:", queryErr);
-          }
-
-          document.getElementById("workerProfile").innerText = `👷 ${currentUserName}`;
-        } else {
-          document.getElementById("workerProfile").innerText = `👷 訪客模式`;
-        }
-      } catch (err) {
-        console.warn("LIFF 初始化備案:", err);
-        document.getElementById("workerProfile").innerText = `👷 離線師傅`;
-      }
-
-      // 無論身分是否解析成功，均呼叫餘額與紀錄載入
-      loadMyBalance();
-      loadMyClaims();
+    loadMyClaims()
     });
 
     // 讀取個人即時餘額
