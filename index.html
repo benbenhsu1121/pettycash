@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>零用金報銷系統</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -288,6 +291,7 @@
     }
 
     async function submitClaim() {
+      async function submitClaim() {
       const expenseDate = document.getElementById("expenseDate").value;
       const amount = parseFloat(document.getElementById("amount").value);
       const category = document.getElementById("category").value;
@@ -309,6 +313,7 @@
         let imageUrl = "";
         let storagePath = "";
 
+        // 🌟 關鍵：只有「有拍照」才執行上傳，沒拍照完全略過 Storage
         if (compressedImageBlob) {
           submitBtn.innerText = "上傳照片中...";
           const monthFolder = expenseDate.substring(0, 7).replace("-", "");
@@ -321,6 +326,7 @@
 
         submitBtn.innerText = "儲存單據中...";
 
+        // 寫入 Firestore（無照片時 receiptImageUrl 存空字串 ""）
         await db.collection("petty_cash_claims").doc(claimId).set({
           id: claimId,
           workerName: currentUserName,
@@ -329,8 +335,8 @@
           amount: amount,
           category: category,
           note: note,
-          receiptImageUrl: imageUrl,
-          receiptStoragePath: storagePath,
+          receiptImageUrl: imageUrl || "",
+          receiptStoragePath: storagePath || "",
           status: "pending",
           rejectReason: "",
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -348,7 +354,6 @@
         submitBtn.innerText = "送出報銷申請";
       }
     }
-
     async function loadMyClaims() {
       const listEl = document.getElementById("claimsList");
       try {
