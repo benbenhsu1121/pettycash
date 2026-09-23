@@ -24,6 +24,18 @@
   </header>
 
   <main class="max-w-md mx-auto p-4 space-y-5">
+    !-- 🌟 師傅個人專屬餘額卡片 -->
+    <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-sm border border-slate-700">
+      <div class="flex items-center justify-between text-xs text-slate-300 mb-1">
+        <span>我的待結算零用金</span>
+        <span id="balanceUpdateTime" class="text-[10px] text-slate-400">讀取中...</span>
+      </div>
+      <div class="flex items-baseline gap-1 mt-1">
+        <span id="myBalanceAmount" class="text-3xl font-extrabold text-amber-400">---</span>
+        <span class="text-xs text-slate-300 font-medium">元</span>
+      </div>
+      <p id="balanceTip" class="text-[11px] text-slate-400 mt-1">主管審核通過後，餘額將自動更新</p>
+    </div>
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
       <h2 class="text-base font-bold text-slate-700 border-b pb-2">✏️ 填寫報銷明細</h2>
 
@@ -193,7 +205,46 @@
       };
       reader.readAsDataURL(file);
     });
+    // 監聽並顯示師傅個人的餘額
+    function loadMyBalance() {
+      if (!currentUserName || currentUserName === "師傅") return;
 
+      db.collection("worker_balances").doc(currentUserName)
+        .onSnapshot(doc => {
+          const balanceEl = document.getElementById("myBalanceAmount");
+          const tipEl = document.getElementById("balanceTip");
+          const timeEl = document.getElementById("balanceUpdateTime");
+
+          if (doc.exists) {
+            const data = doc.data();
+            const bal = data.balance || 0;
+            
+            if (bal < 0) {
+              balanceEl.innerText = `${Math.abs(bal)}`;
+              balanceEl.className = "text-3xl font-extrabold text-rose-400";
+              tipEl.innerText = "主管待撥付 / 待補款給您";
+            } else if (bal > 0) {
+              balanceEl.innerText = `+${bal}`;
+              balanceEl.className = "text-3xl font-extrabold text-emerald-400";
+              tipEl.innerText = "您手頭上持有的預撥零用金餘額";
+            } else {
+              balanceEl.innerText = "0";
+              balanceEl.className = "text-3xl font-extrabold text-slate-200";
+              tipEl.innerText = "款項已全數結清沖銷";
+            }
+
+            if (data.updatedAt) {
+              timeEl.innerText = "已更新";
+            }
+          } else {
+            balanceEl.innerText = "0";
+            tipEl.innerText = "尚無核銷餘額紀錄";
+            timeEl.innerText = "無資料";
+          }
+        }, err => {
+          console.warn("無法取得餘額:", err);
+        });
+    }
     function removePhoto() {
       compressedImageBlob = null;
       document.getElementById("cameraInput").value = "";
