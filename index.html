@@ -71,16 +71,18 @@
 
       <div>
         <label class="block text-xs font-semibold text-slate-500 mb-1">用途明細 / 備註</label>
-        <input type="text" id="note" placeholder="例如: 買螺絲、膨脹螺栓" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm" />
+        <input type="text" id="note" placeholder="例如: 中午便當 5 個、買螺絲" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm" />
       </div>
 
       <div>
-        <label class="block text-xs font-semibold text-slate-500 mb-1">收據 / 發票照片 <span class="text-rose-500">*</span></label>
+        <label class="block text-xs font-semibold text-slate-500 mb-1">
+          收據 / 發票照片 <span class="text-slate-400 font-normal">（選填，便當/無單據可免附）</span>
+        </label>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" />
         <div id="uploadBox" onclick="document.getElementById('cameraInput').click()" class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center cursor-pointer bg-slate-50">
           <div id="uploadPlaceholder" class="space-y-1">
             <div class="text-3xl text-slate-400">📸</div>
-            <p class="text-xs font-medium text-slate-600">點此拍照或選擇相簿</p>
+            <p class="text-xs font-medium text-slate-600">點此拍照或選擇相簿（若無單據可不附）</p>
             <p class="text-[10px] text-slate-400">系統自動壓縮，不佔空間</p>
           </div>
           <div id="previewContainer" class="hidden relative">
@@ -127,7 +129,6 @@
     let currentUserName = localStorage.getItem("petty_cash_name") || "";
     let compressedImageBlob = null;
 
-    // 手動點擊右上角修改名稱
     function changeMyName() {
       const newName = prompt("請輸入您的姓名（例如：彭士偉 或 許老邊）：", currentUserName || "");
       if (newName && newName.trim() !== "") {
@@ -139,9 +140,7 @@
       }
     }
 
-    // 啟動流程：不卡死、全防護
     window.addEventListener("DOMContentLoaded", function() {
-      // 1. 立即填入今天日期，不等待網路
       try {
         const today = new Date();
         const y = today.getFullYear();
@@ -152,14 +151,12 @@
         console.error("日期設定失敗", e);
       }
 
-      // 2. 如果手機本地已有姓名，立即呈現
       if (currentUserName) {
         document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
         loadMyBalance();
         loadMyClaims();
       }
 
-      // 3. 背景非同步抓取 LIFF 身分（加超時保護，絕不卡死畫面）
       initLiffAsync();
     });
 
@@ -177,7 +174,6 @@
           currentUserId = profile.userId;
           localStorage.setItem("petty_cash_uid", currentUserId);
 
-          // 嘗試對應 check_ins 名稱
           let matchedName = profile.displayName || "";
           try {
             const snap = await db.collection("check_ins").where("lineUserId", "==", currentUserId).limit(1).get();
@@ -197,9 +193,8 @@
         console.warn("LIFF 啟用略過:", err);
       }
 
-      // 如果始終沒有姓名，彈出輸入框請師傅輸入一次
       if (!currentUserName) {
-        const input = prompt("【初次使用】請輸入您的公司系統姓名不是Line名稱（例如：李麒豪）：");
+        const input = prompt("【初次使用】請輸入您的姓名（例如：彭士偉、許老邊）：");
         currentUserName = (input && input.trim()) ? input.trim() : "現場師傅";
         localStorage.setItem("petty_cash_name", currentUserName);
       }
@@ -209,7 +204,6 @@
       loadMyClaims();
     }
 
-    // 餘額讀取（防護版）
     function loadMyBalance() {
       const balanceEl = document.getElementById("myBalanceAmount");
       const tipEl = document.getElementById("balanceTip");
@@ -245,7 +239,7 @@
             timeEl.innerText = "已就緒";
           }
         }, function(err) {
-          console.warn("餘額監聽被擋:", err);
+          console.warn("餘額監聽:", err);
           timeEl.innerText = "無資料";
         });
       } catch (e) {
@@ -253,7 +247,6 @@
       }
     }
 
-    // 拍照壓縮
     document.getElementById("cameraInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -294,7 +287,6 @@
       document.getElementById("uploadPlaceholder").classList.remove("hidden");
     }
 
-    // 送出報銷單
     async function submitClaim() {
       const expenseDate = document.getElementById("expenseDate").value;
       const amount = parseFloat(document.getElementById("amount").value);
@@ -303,7 +295,6 @@
 
       if (!expenseDate) return alert("請選擇花費日期");
       if (!amount || amount <= 0) return alert("請輸入正確金額");
-      if (!compressedImageBlob) return alert("請拍下發票或收據憑證");
 
       if (!currentUserName) {
         changeMyName();
@@ -312,16 +303,21 @@
 
       const submitBtn = document.getElementById("submitBtn");
       submitBtn.disabled = true;
-      submitBtn.innerText = "上傳照片中...";
 
       try {
         const claimId = "claim_" + Date.now();
-        const monthFolder = expenseDate.substring(0, 7).replace("-", "");
-        const storagePath = "receipts/" + monthFolder + "/" + claimId + ".jpg";
+        let imageUrl = "";
+        let storagePath = "";
 
-        const storageRef = storage.ref(storagePath);
-        const snapshot = await storageRef.put(compressedImageBlob, { contentType: "image/jpeg" });
-        const imageUrl = await snapshot.ref.getDownloadURL();
+        if (compressedImageBlob) {
+          submitBtn.innerText = "上傳照片中...";
+          const monthFolder = expenseDate.substring(0, 7).replace("-", "");
+          storagePath = "receipts/" + monthFolder + "/" + claimId + ".jpg";
+
+          const storageRef = storage.ref(storagePath);
+          const snapshot = await storageRef.put(compressedImageBlob, { contentType: "image/jpeg" });
+          imageUrl = await snapshot.ref.getDownloadURL();
+        }
 
         submitBtn.innerText = "儲存單據中...";
 
@@ -353,7 +349,6 @@
       }
     }
 
-    // 載入紀錄
     async function loadMyClaims() {
       const listEl = document.getElementById("claimsList");
       try {
@@ -380,6 +375,10 @@
           let actionBtn = c.status === "pending"
             ? '<button onclick="cancelClaim(\'' + c.id + '\')" class="text-xs text-rose-500 border border-rose-200 bg-rose-50 px-2 py-1 rounded-lg">撤回</button>' : "";
 
+          let receiptLink = c.receiptImageUrl 
+            ? '<a href="' + c.receiptImageUrl + '" target="_blank" class="text-xs text-blue-500 underline">看收據</a>'
+            : '<span class="text-xs text-slate-400">無單據</span>';
+
           html += `
             <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
               <div class="space-y-1">
@@ -392,7 +391,7 @@
                 ${c.rejectReason ? `<div class="text-xs text-rose-500">理由: ${c.rejectReason}</div>` : ''}
               </div>
               <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <a href="${c.receiptImageUrl}" target="_blank" class="text-xs text-blue-500 underline">看收據</a>
+                ${receiptLink}
                 ${actionBtn}
               </div>
             </div>
