@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>零用金報銷系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -17,9 +20,9 @@
         <span class="text-xl">🧾</span>
         <h1 class="font-bold text-lg">零用金報銷申請</h1>
       </div>
-      <div id="headerTag" class="text-xs bg-amber-700/80 px-2.5 py-1 rounded-full text-white font-medium">
-        現場師傅端
-      </div>
+      <button type="button" id="workerProfileBtn" onclick="openNameModal()" class="text-xs bg-amber-700 px-3 py-1.5 rounded-full text-white font-medium shadow active:scale-95 transition">
+        點此設定身分
+      </button>
     </div>
   </header>
 
@@ -28,37 +31,17 @@
     <div class="bg-slate-800 text-white rounded-2xl p-4 shadow-sm border border-slate-700">
       <div class="flex items-center justify-between text-xs text-slate-300 mb-1">
         <span id="balanceTitle">我的待結算零用金</span>
-        <span id="balanceUpdateTime" class="text-[10px] text-slate-400">已連線</span>
+        <span id="balanceUpdateTime" class="text-[10px] text-slate-400">已就緒</span>
       </div>
       <div class="flex items-baseline gap-1 mt-1">
         <span id="myBalanceAmount" class="text-3xl font-extrabold text-amber-400">0</span>
         <span class="text-xs text-slate-300 font-medium">元</span>
       </div>
-      <p id="balanceTip" class="text-[11px] text-slate-400 mt-1">請先於下方確認您的報銷姓名</p>
+      <p id="balanceTip" class="text-[11px] text-slate-400 mt-1">主管審核通過後，餘額將自動更新</p>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
       <h2 class="text-base font-bold text-slate-700 border-b pb-2">✏️ 填寫報銷明細</h2>
-
-      <!-- 🌟 報銷人直接設計為下拉選單與自訂輸入，直覺且永不卡死 -->
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 mb-1">報銷人姓名 <span class="text-rose-500">*</span></label>
-        <div class="flex gap-2">
-          <select id="workerSelect" onchange="onWorkerSelectChange()" class="w-1/2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800">
-            <option value="Benjamin">Benjamin</option>
-            <option value="彭士偉">彭士偉</option>
-            <option value="許老邊">許老邊</option>
-            <option value="custom">其他（自行輸入）</option>
-          </select>
-          <input 
-            type="text" 
-            id="workerCustomInput" 
-            placeholder="請輸入名字" 
-            onblur="saveCustomName()" 
-            class="w-1/2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 hidden" 
-          />
-        </div>
-      </div>
 
       <div class="w-full overflow-hidden">
         <label class="block text-xs font-semibold text-slate-500 mb-1">花費日期</label>
@@ -121,13 +104,30 @@
     <div class="space-y-2">
       <div class="flex items-center justify-between px-1">
         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">我的近期報銷紀錄</h3>
-        <button onclick="loadMyClaims()" class="text-xs text-amber-600 font-medium">重整清單</button>
+        <button type="button" onclick="loadMyClaims()" class="text-xs text-amber-600 font-medium">重整清單</button>
       </div>
       <div id="claimsList" class="space-y-2.5">
-        <div class="text-center py-6 text-xs text-slate-400">載入中...</div>
+        <div class="text-center py-6 text-xs text-slate-400">尚無報銷紀錄</div>
       </div>
     </div>
   </main>
+
+  <!-- 姓名設定彈窗 -->
+  <div id="nameModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
+      <div class="text-center space-y-1">
+        <h3 class="font-bold text-lg text-slate-800">設定報銷人身分</h3>
+        <p class="text-xs text-slate-500">請輸入真實姓名，方便主管核准對帳</p>
+      </div>
+      <div>
+        <input type="text" id="nameInput" placeholder="例如：彭士偉、許老邊、Benjamin" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-base text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500" />
+      </div>
+      <div class="flex gap-2">
+        <button type="button" onclick="closeNameModal()" class="flex-1 bg-slate-100 text-slate-600 font-semibold py-2.5 rounded-xl text-sm">取消</button>
+        <button type="button" onclick="confirmNameModal()" class="flex-1 bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm shadow">確定儲存</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -145,101 +145,115 @@
 
     const MY_LIFF_ID = "2011667192-nB1wlENX";
 
-    let currentUserId = localStorage.getItem("petty_cash_uid") || ("user_" + Date.now());
-    let currentUserName = localStorage.getItem("petty_cash_name") || "Benjamin";
+    // 安全讀取 LocalStorage（避免空值或髒資料卡死）
+    function getCleanStorage(key) {
+      const v = localStorage.getItem(key);
+      if (!v || v === "null" || v === "undefined" || v.trim() === "" || v === "師傅" || v === "離線師傅") {
+        return "";
+      }
+      return v.trim();
+    }
+
+    let currentUserId = getCleanStorage("petty_cash_uid") || ("user_" + Date.now());
+    let currentUserName = getCleanStorage("petty_cash_name");
     let compressedImageBlob = null;
     let balanceUnsubscribe = null;
 
-    // 師傅身分選擇控制
-    function onWorkerSelectChange() {
-      const select = document.getElementById("workerSelect");
-      const customInput = document.getElementById("workerCustomInput");
-      if (select.value === "custom") {
-        customInput.classList.remove("hidden");
-        select.classList.remove("w-full");
-        select.classList.add("w-1/2");
-        customInput.focus();
+    function openNameModal() {
+      document.getElementById("nameInput").value = currentUserName || "";
+      document.getElementById("nameModal").classList.remove("hidden");
+    }
+
+    function closeNameModal() {
+      document.getElementById("nameModal").classList.add("hidden");
+    }
+
+    function confirmNameModal() {
+      const val = document.getElementById("nameInput").value.trim();
+      if (!val) {
+        alert("請輸入姓名");
+        return;
+      }
+      currentUserName = val;
+      localStorage.setItem("petty_cash_name", currentUserName);
+      closeNameModal();
+      applyUserIdentity();
+    }
+
+    function applyUserIdentity() {
+      if (currentUserName) {
+        document.getElementById("workerProfileBtn").innerText = "👷 " + currentUserName;
+        document.getElementById("balanceTitle").innerText = currentUserName + " 的待結算零用金";
+        loadMyBalance();
+        loadMyClaims();
       } else {
-        customInput.classList.add("hidden");
-        select.classList.remove("w-1/2");
-        select.classList.add("w-full");
-        currentUserName = select.value;
-        localStorage.setItem("petty_cash_name", currentUserName);
-        onWorkerChanged();
+        document.getElementById("workerProfileBtn").innerText = "點此設定身分";
+        document.getElementById("balanceTitle").innerText = "我的待結算零用金";
       }
     }
 
-    function saveCustomName() {
-      const val = document.getElementById("workerCustomInput").value.trim();
-      if (val) {
-        currentUserName = val;
-        localStorage.setItem("petty_cash_name", currentUserName);
-        onWorkerChanged();
-      }
-    }
-
-    function onWorkerChanged() {
-      document.getElementById("headerTag").innerText = "👷 " + currentUserName;
-      document.getElementById("balanceTitle").innerText = currentUserName + " 的待結算零用金";
-      loadMyBalance();
-      loadMyClaims();
-    }
-
-    // 啟動流程：不依賴任何外部網路，本機優先載入
     window.addEventListener("DOMContentLoaded", function() {
-      // 1. 設定今日日期
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
-      document.getElementById("expenseDate").value = y + "-" + m + "-" + d;
+      // 1. 設定今日花費日期
+      try {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        document.getElementById("expenseDate").value = y + "-" + m + "-" + d;
+      } catch (e) {}
 
-      // 2. 初始化選單名稱
-      const select = document.getElementById("workerSelect");
-      const savedName = localStorage.getItem("petty_cash_name");
-      if (savedName) {
-        currentUserName = savedName;
-        let matched = false;
-        for (let i = 0; i < select.options.length; i++) {
-          if (select.options[i].value === savedName) {
-            select.selectedIndex = i;
-            matched = true;
-            break;
-          }
-        }
-        if (!matched) {
-          select.value = "custom";
-          document.getElementById("workerCustomInput").value = savedName;
-          document.getElementById("workerCustomInput").classList.remove("hidden");
-        }
-      } else {
-        select.value = "Benjamin";
-        currentUserName = "Benjamin";
+      // 2. 若已有儲存的身分，立刻套用
+      if (currentUserName) {
+        applyUserIdentity();
       }
 
-      onWorkerChanged();
-
-      // 3. 背景悄悄嘗試 LIFF，失敗絕不干擾使用
-      try {
-        liff.init({ liffId: MY_LIFF_ID }).then(function() {
-          if (liff.isLoggedIn()) {
-            liff.getProfile().then(function(p) {
-              currentUserId = p.userId;
-              localStorage.setItem("petty_cash_uid", currentUserId);
-            });
-          }
-        }).catch(function(e) {
-          console.warn("LIFF 啟用備用狀態");
-        });
-      } catch (err) {}
+      // 3. 背景執行 LIFF，若無身分則主動彈窗
+      initAppAsync();
     });
 
-    // 讀取個人餘額
+    async function initAppAsync() {
+      try {
+        await liff.init({ liffId: MY_LIFF_ID });
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          currentUserId = profile.userId;
+          localStorage.setItem("petty_cash_uid", currentUserId);
+
+          if (!currentUserName) {
+            let matchedName = profile.displayName || "";
+            try {
+              const snap = await db.collection("check_ins").where("lineUserId", "==", currentUserId).limit(1).get();
+              if (!snap.empty && snap.docs[0].data().displayName) {
+                matchedName = snap.docs[0].data().displayName;
+              }
+            } catch (e) {}
+
+            if (matchedName) {
+              currentUserName = matchedName;
+              localStorage.setItem("petty_cash_name", currentUserName);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("LIFF 啟用略過:", err);
+      }
+
+      if (currentUserName) {
+        applyUserIdentity();
+      } else {
+        // 沒有身分時主動彈窗
+        openNameModal();
+      }
+    }
+
+    // 即時監聽餘額
     function loadMyBalance() {
       if (balanceUnsubscribe) { balanceUnsubscribe(); }
       const balanceEl = document.getElementById("myBalanceAmount");
       const tipEl = document.getElementById("balanceTip");
       const timeEl = document.getElementById("balanceUpdateTime");
+
+      if (!currentUserName) return;
 
       try {
         balanceUnsubscribe = db.collection("worker_balances").doc(currentUserName)
@@ -267,12 +281,9 @@
               timeEl.innerText = "已就緒";
             }
           }, function(err) {
-            console.warn("餘額讀取限制:", err);
-            timeEl.innerText = "離線模式";
+            console.warn("餘額讀取警告:", err);
           });
-      } catch (e) {
-        timeEl.innerText = "離線模式";
-      }
+      } catch (e) {}
     }
 
     // 拍照壓縮
@@ -316,7 +327,7 @@
       document.getElementById("uploadPlaceholder").classList.remove("hidden");
     }
 
-    // 送出報銷申請
+    // 送出報銷單
     async function submitClaim() {
       const expenseDate = document.getElementById("expenseDate").value;
       const amount = parseFloat(document.getElementById("amount").value);
@@ -325,7 +336,11 @@
 
       if (!expenseDate) return alert("請選擇花費日期");
       if (!amount || amount <= 0) return alert("請輸入正確金額");
-      if (!currentUserName) return alert("請選擇或填寫報銷人姓名");
+
+      if (!currentUserName) {
+        openNameModal();
+        return;
+      }
 
       const submitBtn = document.getElementById("submitBtn");
       submitBtn.disabled = true;
@@ -375,9 +390,14 @@
       }
     }
 
-    // 載入紀錄（依師傅姓名查詢）
+    // 載入紀錄
     async function loadMyClaims() {
       const listEl = document.getElementById("claimsList");
+      if (!currentUserName) {
+        listEl.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">請先設定身分後查看紀錄</div>';
+        return;
+      }
+
       try {
         const snapshot = await db.collection("petty_cash_claims")
           .where("workerName", "==", currentUserName)
