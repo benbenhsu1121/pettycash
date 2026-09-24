@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>零用金報銷系統</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
+  <title>零用金報銷系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -20,9 +20,9 @@
         <span class="text-xl">🧾</span>
         <h1 class="font-bold text-lg">零用金報銷申請</h1>
       </div>
-      <div id="workerProfile" onclick="changeMyName()" class="text-xs bg-amber-700/80 px-2.5 py-1 rounded-full text-white font-medium cursor-pointer shadow-sm">
+      <button type="button" id="workerProfile" onclick="openNameModal()" class="text-xs bg-amber-700/80 px-2.5 py-1.5 rounded-full text-white font-medium shadow-sm active:scale-95 transition">
         點此設定身分
-      </div>
+      </button>
     </div>
   </header>
 
@@ -112,6 +112,23 @@
     </div>
   </main>
 
+  <!-- 🌟 自訂純 HTML 姓名彈窗（徹底解決 LINE 阻擋 prompt 問題） -->
+  <div id="nameModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
+      <div class="text-center space-y-1">
+        <h3 class="font-bold text-lg text-slate-800">設定報銷人身分</h3>
+        <p class="text-xs text-slate-500">請輸入您的真實姓名，方便主管核准對帳</p>
+      </div>
+      <div>
+        <input type="text" id="nameInput" placeholder="例如：彭士偉、許老邊、Benjamin" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-base text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500" />
+      </div>
+      <div class="flex gap-2">
+        <button type="button" onclick="closeNameModal()" class="flex-1 bg-slate-100 text-slate-600 font-semibold py-2.5 rounded-xl text-sm">取消</button>
+        <button type="button" onclick="confirmNameModal()" class="flex-1 bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm shadow">確定儲存</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCQ98ZWCCOk7ALopTQKjpizcgeyiRu12_I",
@@ -132,15 +149,28 @@
     let currentUserName = localStorage.getItem("petty_cash_name") || "";
     let compressedImageBlob = null;
 
-    function changeMyName() {
-      const newName = prompt("請輸入您的姓名（例如：彭士偉 或 許老邊）：", currentUserName || "");
-      if (newName && newName.trim() !== "") {
-        currentUserName = newName.trim();
-        localStorage.setItem("petty_cash_name", currentUserName);
-        document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
-        loadMyBalance();
-        loadMyClaims();
+    // 彈窗控制函式
+    function openNameModal() {
+      document.getElementById("nameInput").value = currentUserName || "";
+      document.getElementById("nameModal").classList.remove("hidden");
+    }
+
+    function closeNameModal() {
+      document.getElementById("nameModal").classList.add("hidden");
+    }
+
+    function confirmNameModal() {
+      const val = document.getElementById("nameInput").value.trim();
+      if (!val) {
+        alert("請輸入姓名");
+        return;
       }
+      currentUserName = val;
+      localStorage.setItem("petty_cash_name", currentUserName);
+      document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
+      closeNameModal();
+      loadMyBalance();
+      loadMyClaims();
     }
 
     window.addEventListener("DOMContentLoaded", function() {
@@ -165,7 +195,7 @@
 
     async function initLiffAsync() {
       const timeoutPromise = new Promise(function(resolve) {
-        setTimeout(resolve, 2500, "timeout");
+        setTimeout(resolve, 2000, "timeout");
       });
 
       try {
@@ -184,10 +214,10 @@
               matchedName = snap.docs[0].data().displayName;
             }
           } catch (e) {
-            console.warn("未對應到打卡姓名");
+            console.warn("打卡名稱未查到");
           }
 
-          if (matchedName) {
+          if (matchedName && !currentUserName) {
             currentUserName = matchedName;
             localStorage.setItem("petty_cash_name", currentUserName);
           }
@@ -196,15 +226,14 @@
         console.warn("LIFF 啟用略過:", err);
       }
 
+      // 如果始終沒有姓名，主動彈出乾淨的 HTML 輸入卡片
       if (!currentUserName) {
-        const input = prompt("【初次使用】請輸入您的姓名（例如：彭士偉、許老邊）：");
-        currentUserName = (input && input.trim()) ? input.trim() : "現場師傅";
-        localStorage.setItem("petty_cash_name", currentUserName);
+        openNameModal();
+      } else {
+        document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
+        loadMyBalance();
+        loadMyClaims();
       }
-
-      document.getElementById("workerProfile").innerText = "👷 " + currentUserName;
-      loadMyBalance();
-      loadMyClaims();
     }
 
     function loadMyBalance() {
@@ -213,7 +242,7 @@
       const timeEl = document.getElementById("balanceUpdateTime");
 
       if (!currentUserName) {
-        timeEl.innerText = "請先設定姓名";
+        timeEl.innerText = "請設定姓名";
         return;
       }
 
@@ -242,7 +271,7 @@
             timeEl.innerText = "已就緒";
           }
         }, function(err) {
-          console.warn("餘額監聽:", err);
+          console.warn("餘額監聽被擋:", err);
           timeEl.innerText = "無資料";
         });
       } catch (e) {
@@ -291,7 +320,6 @@
     }
 
     async function submitClaim() {
-      async function submitClaim() {
       const expenseDate = document.getElementById("expenseDate").value;
       const amount = parseFloat(document.getElementById("amount").value);
       const category = document.getElementById("category").value;
@@ -301,8 +329,8 @@
       if (!amount || amount <= 0) return alert("請輸入正確金額");
 
       if (!currentUserName) {
-        changeMyName();
-        if (!currentUserName) return alert("請先設定您的姓名後再送出");
+        openNameModal();
+        return;
       }
 
       const submitBtn = document.getElementById("submitBtn");
@@ -313,7 +341,6 @@
         let imageUrl = "";
         let storagePath = "";
 
-        // 🌟 關鍵：只有「有拍照」才執行上傳，沒拍照完全略過 Storage
         if (compressedImageBlob) {
           submitBtn.innerText = "上傳照片中...";
           const monthFolder = expenseDate.substring(0, 7).replace("-", "");
@@ -326,7 +353,6 @@
 
         submitBtn.innerText = "儲存單據中...";
 
-        // 寫入 Firestore（無照片時 receiptImageUrl 存空字串 ""）
         await db.collection("petty_cash_claims").doc(claimId).set({
           id: claimId,
           workerName: currentUserName,
@@ -354,6 +380,7 @@
         submitBtn.innerText = "送出報銷申請";
       }
     }
+
     async function loadMyClaims() {
       const listEl = document.getElementById("claimsList");
       try {
